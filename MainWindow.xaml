@@ -1,0 +1,514 @@
+<Window x:Class="DailyUptimeWidget.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:DailyUptimeWidget"
+        xmlns:vm="clr-namespace:DailyUptimeWidget.ViewModels"
+        xmlns:conv="clr-namespace:DailyUptimeWidget.Converters"
+        mc:Ignorable="d"
+        Title="Daily Uptime" Width="250" SizeToContent="Height" MinHeight="75"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="False" ShowInTaskbar="False" ResizeMode="NoResize"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        Loaded="Window_Loaded">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="-1" CornerRadius="0"/>
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityInverseConverter" Inverse="True"/>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+
+        <!-- Premium Modern Color Palette -->
+        <Color x:Key="PrimaryAccentColor">#00D2FF</Color>
+        <Color x:Key="SecondaryAccentColor">#3A7BD5</Color>
+        <Color x:Key="DangerColor">#FF4B2B</Color>
+        <Color x:Key="SuccessColor">#00F260</Color>
+        <Color x:Key="GoldColor">#FFD700</Color>
+
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#E0E0E0"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource PrimaryAccentColor}"/>
+        <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}"/>
+        <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}"/>
+        <SolidColorBrush x:Key="GoldBrush" Color="{StaticResource GoldColor}"/>
+        <SolidColorBrush x:Key="SecondaryAccentBrush" Color="{StaticResource SecondaryAccentColor}"/>
+
+        <!-- Glassmorphism Effect Brushes (Darker & Denser) -->
+        <LinearGradientBrush x:Key="GlassBackgroundBrush" StartPoint="0,0" EndPoint="1,1" Opacity="1">
+            <GradientStop Color="#1A1A1E" Offset="0.0"/>
+            <GradientStop Color="#08080A" Offset="1.0"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="GlassBorderBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#44FFFFFF" Offset="0.0"/>
+            <GradientStop Color="#11FFFFFF" Offset="1.0"/>
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="InputBorderBrush" Color="#D2B48C"/>
+
+        <SolidColorBrush x:Key="ControlHoverBrush" Color="#22FFFFFF"/>
+        <SolidColorBrush x:Key="ControlPressedBrush" Color="#44FFFFFF"/>
+
+        <!-- Reusable Icon Path Style -->
+        <Style x:Key="IconPathStyle" TargetType="Path">
+            <Setter Property="Stretch" Value="Uniform"/>
+            <Setter Property="StrokeThickness" Value="1.5"/>
+            <Setter Property="StrokeLineJoin" Value="Round"/>
+            <Setter Property="StrokeStartLineCap" Value="Round"/>
+            <Setter Property="StrokeEndLineCap" Value="Round"/>
+        </Style>
+
+        <!-- Premium Window Button Style -->
+        <Style x:Key="PremiumWindowButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="12" Opacity="0.6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource ControlHoverBrush}"/>
+                                <Setter TargetName="border" Property="Opacity" Value="1"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource ControlPressedBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Premium Invisible TextBox Style -->
+        <Style x:Key="ModernPremiumTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontFamily" Value="Segoe UI Semibold"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="CaretBrush" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Grid>
+                            <TextBlock x:Name="Placeholder" 
+                                       Text="What's next?..." 
+                                       Foreground="#666666"
+                                       IsHitTestVisible="False"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Margin="0,0,0,2">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource TemplatedParent}}" Value="">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <ScrollViewer x:Name="PART_ContentHost"/>
+                            <Border x:Name="FocusLine" 
+                                    Height="1" 
+                                    VerticalAlignment="Bottom" 
+                                    Background="{StaticResource AccentBrush}" 
+                                    Margin="20,0" 
+                                    Opacity="0">
+                                <Border.RenderTransform>
+                                    <ScaleTransform ScaleX="0"/>
+                                </Border.RenderTransform>
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="FocusLine" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.2"/>
+                                            <DoubleAnimation Storyboard.TargetName="FocusLine" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" To="1" Duration="0:0:0.3">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="FocusLine" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.2"/>
+                                            <DoubleAnimation Storyboard.TargetName="FocusLine" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" To="0" Duration="0:0:0.2"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TaskIconButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="RenderTransform">
+                        <Setter.Value>
+                            <ScaleTransform ScaleX="1.1" ScaleY="1.1"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Border Grid.Row="0" Margin="10" 
+            Background="{StaticResource GlassBackgroundBrush}" 
+            BorderBrush="{StaticResource GlassBorderBrush}" 
+            BorderThickness="1" 
+            CornerRadius="16"
+            Focusable="True"
+            PreviewMouseDown="MainBorder_PreviewMouseDown">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="15" Direction="-90" RenderingBias="Quality" ShadowDepth="4" Opacity="0.5"/>
+        </Border.Effect>
+
+        <Grid Margin="5,2,5,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header Controls -->
+            <Grid Grid.Row="0" VerticalAlignment="Top">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                    <!-- Minimize -->
+                    <Button Style="{StaticResource PremiumWindowButtonStyle}" Command="{Binding MinimizeAppCommand}" ToolTip="Hide Widget">
+                        <Path Style="{StaticResource IconPathStyle}" Data="M6,12 L18,12" Stroke="{StaticResource TextSecondaryBrush}" Width="8" Height="8"/>
+                    </Button>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <!-- AutoStart Toggle -->
+                    <ToggleButton IsChecked="{Binding IsAutoStartEnabled}" Width="16" Height="16" Background="Transparent" BorderThickness="0" ToolTip="Start with Windows" Margin="0,0,5,0">
+                        <ToggleButton.Style>
+                            <Style TargetType="ToggleButton">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border x:Name="btnBorder" CornerRadius="9" Background="Transparent" Opacity="0.5">
+                                                <Path x:Name="partIcon" Style="{StaticResource IconPathStyle}" 
+                                                      Data="M7,2 L3,10 H6 L4,18 L11,8 H8 Z" 
+                                                      Fill="Transparent" Stroke="{StaticResource TextSecondaryBrush}" Width="6" Height="10" StrokeThickness="1.2"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsChecked" Value="True">
+                                                    <Setter TargetName="partIcon" Property="Fill" Value="{StaticResource GoldBrush}"/>
+                                                    <Setter TargetName="partIcon" Property="Stroke" Value="{StaticResource GoldBrush}"/>
+                                                    <Setter TargetName="btnBorder" Property="Opacity" Value="1"/>
+                                                </Trigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="btnBorder" Property="Background" Value="{StaticResource ControlHoverBrush}"/>
+                                                    <Setter TargetName="btnBorder" Property="Opacity" Value="1"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ToggleButton.Style>
+                    </ToggleButton>
+
+                    <!-- Close -->
+                    <Button Style="{StaticResource PremiumWindowButtonStyle}" Command="{Binding CloseAppCommand}" ToolTip="Close">
+                        <Path Style="{StaticResource IconPathStyle}" Data="M6,6 L18,18 M18,6 L6,18" Stroke="{StaticResource DangerBrush}" Width="8" Height="8"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- Main Content -->
+            <ScrollViewer Grid.Row="1" Margin="0,0,0,0" VerticalScrollBarVisibility="Hidden" PanningMode="VerticalOnly">
+                <StackPanel>
+                    <!-- Timer Display -->
+                    <Grid HorizontalAlignment="Center">
+                        <TextBlock Text="{Binding UptimeString}" 
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   FontSize="22" 
+                                   FontWeight="Bold" 
+                                   FontFamily="Segoe UI Semibold"
+                                   ToolTip="{Binding TimeSource}">
+                            <TextBlock.Effect>
+                                <DropShadowEffect BlurRadius="8" Color="{StaticResource PrimaryAccentColor}" Opacity="0.3" ShadowDepth="0"/>
+                            </TextBlock.Effect>
+                        </TextBlock>
+                    </Grid>
+ 
+                    <TextBlock Text="{Binding SubStatusString}" 
+                               Foreground="{StaticResource TextSecondaryBrush}" 
+                               FontSize="11" 
+                               HorizontalAlignment="Center"
+                               FontFamily="Segoe UI Semibold" 
+                               Margin="0,-2,0,2"/>
+
+                    <!-- Separator -->
+                    <Rectangle Height="1" Fill="#22FFFFFF" Margin="10,0" RadiusX="0.5" RadiusY="0.5"/>
+
+                    <!-- Task Items Control -->
+                    <ItemsControl ItemsSource="{Binding Tasks}" Margin="0,2,0,0">
+                        <ItemsControl.ItemContainerStyle>
+                            <Style TargetType="ContentPresenter">
+                                <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                                <Setter Property="RenderTransform">
+                                    <Setter.Value>
+                                        <TranslateTransform/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="LayoutTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleY="1"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <EventTrigger RoutedEvent="Loaded">
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
+                                                <DoubleAnimation Storyboard.TargetProperty="(RenderTransform).(TranslateTransform.Y)" From="15" To="0" Duration="0:0:0.4">
+                                                    <DoubleAnimation.EasingFunction>
+                                                        <CubicEase EasingMode="EaseOut"/>
+                                                    </DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </EventTrigger>
+                                    <DataTrigger Binding="{Binding IsRemoving}" Value="True">
+                                        <DataTrigger.EnterActions>
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.25"/>
+                                                    <DoubleAnimation Storyboard.TargetProperty="(LayoutTransform).(ScaleTransform.ScaleY)" To="0" Duration="0:0:0.3">
+                                                        <DoubleAnimation.EasingFunction>
+                                                            <CubicEase EasingMode="EaseInOut"/>
+                                                        </DoubleAnimation.EasingFunction>
+                                                    </DoubleAnimation>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </DataTrigger.EnterActions>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ItemsControl.ItemContainerStyle>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid x:Name="TaskRoot" Margin="0,3">
+                                    <Border x:Name="taskBg" CornerRadius="8" Background="Transparent" Padding="8,4" BorderThickness="1" BorderBrush="Transparent">
+                                        <Grid>
+                                            <!-- View Mode -->
+                                            <Grid x:Name="ViewGrid" Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityInverseConverter}}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Marker -->
+                                                <Ellipse Fill="{StaticResource AccentBrush}" Opacity="0.6" Width="5" Height="5" VerticalAlignment="Center" Margin="0,0,6,0"/>
+
+                                                 <TextBlock x:Name="DescriptionText" Grid.Column="1" Text="{Binding Text}" 
+                                                            Foreground="{StaticResource TextPrimaryBrush}" 
+                                                            FontSize="11" 
+                                                            VerticalAlignment="Center"
+                                                            TextTrimming="CharacterEllipsis"/>
+
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" Opacity="0" x:Name="ActionButtons">
+                                                    <!-- Edit Button -->
+                                                    <Button Command="{Binding EnableEditCommand}" Style="{StaticResource TaskIconButtonStyle}" Cursor="Hand" ToolTip="Edit">
+                                                        <Path x:Name="EditIcon" Style="{StaticResource IconPathStyle}" 
+                                                              Data="M2,10 L2,14 L6,14 L14,6 L10,2 L2,10 M11,3 L13,5" 
+                                                              Stroke="{StaticResource TextSecondaryBrush}" Width="10" Height="10"/>
+                                                    </Button>
+                                                    <!-- Delete Button -->
+                                                    <Button Command="{Binding DeleteCommand}" Style="{StaticResource TaskIconButtonStyle}" Cursor="Hand" Margin="6,0,0,0" ToolTip="Delete">
+                                                        <Path x:Name="DeleteIcon" Style="{StaticResource IconPathStyle}" 
+                                                              Data="M3,6 L21,6 M8,6 V4 A2,2 0 0 1 10,2 H14 A2,2 0 0 1 16,4 V6 M19,6 V20 A2,2 0 0 1 17,22 H7 A2,2 0 0 1 5,20 V6 M10,11 V17 M14,11 V17" 
+                                                              Stroke="{StaticResource TextSecondaryBrush}" Width="10" Height="10"/>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <!-- Edit Mode -->
+                                            <Grid x:Name="EditGrid" Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Marker -->
+                                                <Ellipse Fill="{StaticResource AccentBrush}" Opacity="0.6" Width="5" Height="5" VerticalAlignment="Center" Margin="0,0,6,0"/>
+
+                                                <TextBox Grid.Column="1" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" 
+                                                         Style="{StaticResource ModernPremiumTextBoxStyle}"
+                                                         Height="24" HorizontalContentAlignment="Left"
+                                                         LostFocus="TextBox_LostFocus">
+                                                    <TextBox.InputBindings>
+                                                        <KeyBinding Key="Return" Command="{Binding FinishEditCommand}"/>
+                                                        <KeyBinding Key="Escape" Command="{Binding FinishEditCommand}"/>
+                                                    </TextBox.InputBindings>
+                                                </TextBox>
+                                            </Grid>
+
+                                            <!-- Confirmation Overlay (Save) -->
+                                            <Border x:Name="ConfirmOverlay" 
+                                                    Visibility="{Binding IsConfirming, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                    Background="#F20A1A10" 
+                                                    CornerRadius="8"
+                                                    BorderBrush="#AA00F260"
+                                                    BorderThickness="1.5"
+                                                    Margin="-2, -2, -2, -2"
+                                                    Padding="10, 6">
+                                                <Border.Effect>
+                                                    <DropShadowEffect BlurRadius="10" Color="#00F260" Opacity="0.4" ShadowDepth="0"/>
+                                                </Border.Effect>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    
+                                                    <TextBlock Text="Save changed?" 
+                                                               Foreground="White" 
+                                                               FontSize="11" 
+                                                               VerticalAlignment="Center"
+                                                               FontWeight="Bold"
+                                                               FontFamily="Segoe UI Semibold"/>
+                                                    
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <!-- Confirm (v) -->
+                                                        <Button Command="{Binding ConfirmSaveCommand}" Style="{StaticResource TaskIconButtonStyle}">
+                                                            <Path Data="M2,7 L5,10 L10,2" Stroke="#FF00F260" StrokeThickness="2.5" Width="14" Height="14"/>
+                                                        </Button>
+                                                        <!-- Cancel (x) -->
+                                                        <Button Command="{Binding CancelSaveCommand}" Style="{StaticResource TaskIconButtonStyle}" Margin="20,0,0,0">
+                                                            <Path Data="M2,2 L10,10 M10,2 L2,10" Stroke="#FFFF4B2B" StrokeThickness="2.5" Width="12" Height="12"/>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+
+                                            <!-- Deletion Confirmation Overlay -->
+                                            <Border x:Name="DeleteOverlay" 
+                                                    Visibility="{Binding IsDeleting, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                    Background="#F21E0A0A" 
+                                                    CornerRadius="8"
+                                                    BorderBrush="#AAFF4B2B"
+                                                    BorderThickness="1.5"
+                                                    Margin="-2, -2, -2, -2"
+                                                    Padding="10, 6">
+                                                <Border.Effect>
+                                                    <DropShadowEffect BlurRadius="10" Color="#FF4B2B" Opacity="0.4" ShadowDepth="0"/>
+                                                </Border.Effect>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <TextBlock Text="Delete task?" 
+                                                               Foreground="White" 
+                                                               FontSize="11" 
+                                                               VerticalAlignment="Center"
+                                                               FontWeight="Bold"
+                                                               FontFamily="Segoe UI Semibold"/>
+
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <!-- Confirm Delete (v) -->
+                                                        <Button Command="{Binding ConfirmDeleteCommand}" Style="{StaticResource TaskIconButtonStyle}">
+                                                            <Path Data="M2,7 L5,10 L10,2" Stroke="#FF00F260" StrokeThickness="2.5" Width="14" Height="14"/>
+                                                        </Button>
+                                                        <!-- Cancel Delete (x) -->
+                                                        <Button Command="{Binding CancelDeleteCommand}" Style="{StaticResource TaskIconButtonStyle}" Margin="20,0,0,0">
+                                                            <Path Data="M2,2 L10,10 M10,2 L2,10" Stroke="#FFFF4B2B" StrokeThickness="2.5" Width="12" Height="12"/>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                                <DataTemplate.Triggers>
+                                     <Trigger Property="IsMouseOver" Value="True" SourceName="TaskRoot">
+                                         <Setter TargetName="taskBg" Property="Background" Value="Transparent"/>
+                                         <Setter TargetName="taskBg" Property="BorderBrush" Value="#44FFD700"/>
+                                         <Setter TargetName="ActionButtons" Property="Opacity" Value="1"/>
+                                         <Setter TargetName="DescriptionText" Property="TextWrapping" Value="Wrap"/>
+                                         <Setter TargetName="DescriptionText" Property="TextTrimming" Value="None"/>
+                                     </Trigger>
+                                    <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                        <Setter TargetName="taskBg" Property="Background" Value="#22FFFFFF"/>
+                                        <Setter TargetName="taskBg" Property="BorderBrush" Value="Transparent"/>
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Input Field -->
+            <Grid Grid.Row="2" Margin="0,5,0,0">
+                <Border x:Name="InputContainer" 
+                        Margin="5,0,5,5" 
+                        Background="#0AFFFFFF" 
+                        CornerRadius="10" 
+                        BorderBrush="{StaticResource InputBorderBrush}" 
+                        BorderThickness="1">
+                    <TextBox Text="{Binding CurrentTaskInput, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource ModernPremiumTextBoxStyle}"
+                             Height="28">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Return" Command="{Binding AddTaskCommand}"/>
+                        </TextBox.InputBindings>
+                    </TextBox>
+                </Border>
+            </Grid>
+        </Grid>
+        
+        <Border.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="Auto Start on Boot" IsCheckable="True" IsChecked="{Binding IsAutoStartEnabled}"/>
+                <MenuItem Header="Reset Data" Command="{Binding ResetDataCommand}"/>
+                <Separator/>
+                <MenuItem Header="Exit" Command="{Binding ExitCommand}"/>
+            </ContextMenu>
+        </Border.ContextMenu>
+    </Border>
+</Window>
+

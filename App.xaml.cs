@@ -56,27 +56,20 @@ namespace DailyUptimeWidget
             if (!createdNew)
             {
                 Log("Another instance is already running. Shutting down.");
-                // Optional: We could try to bring the other window to front here, 
-                // but since we don't have easy handle to it, we just exit.
                 Shutdown();
                 return;
             }
 
-            Log("OnStartup entered.");
             base.OnStartup(e);
 
             try 
             {
-                Log("Initializing ShutdownMode...");
                 ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-                Log("Initializing TrayService...");
                 _trayService = new TrayService();
                 
-                Log("Creating MainWindow...");
                 var mainWindow = new MainWindow();
                 
-                Log("Initializing Tray Commands...");
                 _trayService.Initialize(
                     onShowCommand: () => 
                     {
@@ -90,15 +83,11 @@ namespace DailyUptimeWidget
                         Shutdown();
                     });
 
-                Log("Initializing Services...");
                 var bootService = new BootTimeService();
                 var registryService = new StartupRegistryService();
-                Log("Initializing ViewModel...");
                 var viewModel = new MainViewModel(bootService, registryService, _trayService);
 
-                Log("Setting DataContext...");
                 mainWindow.DataContext = viewModel;
-                Log("Showing MainWindow...");
                 mainWindow.Show();
                 Log("Startup Complete.");
             }

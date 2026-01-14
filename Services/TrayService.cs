@@ -124,7 +124,6 @@ namespace DailyUptimeWidget.Services
                 bitmap.CacheOption = BitmapCacheOption.OnLoad;
                 bitmap.EndInit();
                 _hIcon = GetHIcon(bitmap);
-                App.Log($"Tray Icon loaded successfully: {_hIcon}");
             }
             catch (Exception ex) 
             { 

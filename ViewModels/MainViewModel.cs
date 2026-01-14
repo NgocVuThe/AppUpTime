@@ -29,7 +29,6 @@ namespace DailyUptimeWidget.ViewModels
 
         public MainViewModel(IBootTimeService bootTimeService, IStartupRegistryService startupRegistryService, ITrayService trayService)
         {
-            App.Log("MainViewModel Constructor started.");
             _bootTimeService = bootTimeService;
             _startupRegistryService = startupRegistryService;
             _trayService = trayService;
@@ -39,7 +38,6 @@ namespace DailyUptimeWidget.ViewModels
             _timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1) };
             _timer.Tick += Timer_Tick;
             _timer.Start();
-            App.Log("Timer initialized and started.");
 
             SystemEvents.PowerModeChanged += OnPowerModeChanged;
 
@@ -49,7 +47,6 @@ namespace DailyUptimeWidget.ViewModels
 
         private void Initialize()
         {
-            App.Log("Initializing ViewModel components...");
             // Initialize properties that depend on services
             var result = _bootTimeService.CheckAndGetFirstBootTime();
             _firstBootTime = result.BootTime;
@@ -58,17 +55,16 @@ namespace DailyUptimeWidget.ViewModels
             // Apply 8:00 AM Rule
             var limit = DateTime.Today.AddHours(8); // 8:00 AM today
             
+            _effectiveStartTime = _firstBootTime < limit ? limit : _firstBootTime;
+            
             if (_firstBootTime < limit)
             {
-                _effectiveStartTime = limit;
                 TimeSource = $"{result.Source} | {result.BootTime:HH:mm} (Starts 08:00)";
             }
             else
             {
-                _effectiveStartTime = _firstBootTime;
                 TimeSource = $"{result.Source} | {result.BootTime:HH:mm:ss}";
             }
-            App.Log($"Effective StartTime: {_effectiveStartTime}");
 
             IsAutoStartEnabled = _startupRegistryService.IsAutoStartEnabled;
             
@@ -78,8 +74,6 @@ namespace DailyUptimeWidget.ViewModels
             {
                 Tasks.Add(new DailyTaskViewModel(t.Text, SaveTasks, RemoveTask, t.NotificationTime, t.IsNotificationEnabled));
             }
-            
-            App.Log($"Loaded {Tasks.Count} tasks.");
         }
 
         private void SaveTasks()
@@ -139,13 +133,6 @@ namespace DailyUptimeWidget.ViewModels
             {
                 _tickCount++;
                 var now = DateTime.Now;
-
-                // HEART-BEAT LOGGING (Every 10 seconds)
-                if (_tickCount % 10 == 0)
-                {
-                    App.Log($"Timer Tick Heartbeat: Tick={_tickCount}, Uptime={UptimeString}, Status={SubStatusString}");
-                    // Polling Removed in favor of Event-Driven Cache Invalidation
-                }
 
                 // Calculate duration from EFFECTIVE start time
                 var workDuration = CalculateWorkDuration(_effectiveStartTime, now);

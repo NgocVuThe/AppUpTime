@@ -69,8 +69,6 @@ namespace DailyUptimeWidget
                     
                     // Push to bottom of Z-order
                     SetWindowPos(helper.Handle, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE);
-                    
-                    App.Log("Widget pinned as Shell Owner successfully.");
                 }
             }
             catch (Exception ex)

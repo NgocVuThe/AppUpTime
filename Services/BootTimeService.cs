@@ -32,12 +32,10 @@ namespace DailyUptimeWidget.Services
         {
             if (_cachedResult != null)
             {
-                App.Log($"Returning CACHED BootTime: {_cachedResult.BootTime} (Source: {_cachedResult.Source})");
                 return _cachedResult;
             }
 
             var today = DateTime.Today;
-            App.Log($"Checking boot time sources for {today:yyyy-MM-dd}...");
 
             // Sources
             DateTime? wmiBootTime = GetBootTimeFromWmi();
@@ -50,14 +48,12 @@ namespace DailyUptimeWidget.Services
             if (wmiBootTime.HasValue && wmiBootTime.Value.Date == today)
             {
                 candidates.Add((wmiBootTime.Value, "WMI"));
-                App.Log($"Candidate WMI: {wmiBootTime.Value}");
             }
 
             // 2. Event Log
             if (eventLogBootTime.HasValue)
             {
                 candidates.Add((eventLogBootTime.Value, "EventLog"));
-                App.Log($"Candidate EventLog: {eventLogBootTime.Value}");
             }
 
             // 3. Fallback (System Tick)
@@ -65,7 +61,6 @@ namespace DailyUptimeWidget.Services
             if (tickBootTime.Date == today)
             {
                  candidates.Add((tickBootTime, "SystemTick"));
-                 App.Log($"Candidate SystemTick: {tickBootTime}");
             }
 
             // 4. Saved State
@@ -73,13 +68,11 @@ namespace DailyUptimeWidget.Services
             if (state != null && state.LastRecordedDate.Date == today)
             {
                 candidates.Add((state.FirstBootTime, state.Source ?? "SavedState"));
-                App.Log($"Candidate SavedState: {state.FirstBootTime} (from {state.Source})");
             }
 
             if (candidates.Any())
             {
                 var bestCandidate = candidates.OrderBy(c => c.Time).First();
-                App.Log($"Selected Best Candidate: {bestCandidate.Time} from {bestCandidate.Source}");
 
                 // If the best candidate is effectively different from saved state, update state
                 bool needSave = false;
@@ -101,7 +94,6 @@ namespace DailyUptimeWidget.Services
                     state.FirstBootTime = bestCandidate.Time;
                     state.Source = bestCandidate.Source;
                      needSave = true;
-                     App.Log($"Updating saved state with new best candidate.");
                 }
 
                 if (needSave) SaveState(state);

@@ -18,7 +18,7 @@ namespace DailyUptimeWidget
                 var appDataPath = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData), "DailyUptimeWidget");
                 System.IO.Directory.CreateDirectory(appDataPath);
                 var logPath = System.IO.Path.Combine(appDataPath, "debug_log.txt");
-                System.IO.File.AppendAllText(logPath, $"{System.DateTime.Now}: {message}\n");
+                System.IO.File.AppendAllText(logPath, $"{System.DateTime.Now}: {message}\n", System.Text.Encoding.UTF8);
             }
             catch {}
         }

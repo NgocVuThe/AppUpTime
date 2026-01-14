@@ -76,7 +76,7 @@ namespace DailyUptimeWidget.ViewModels
             Tasks.Clear();
             foreach (var t in savedTasks)
             {
-                Tasks.Add(new DailyTaskViewModel(t, SaveTasks, RemoveTask));
+                Tasks.Add(new DailyTaskViewModel(t.Text, SaveTasks, RemoveTask, t.NotificationTime, t.IsNotificationEnabled));
             }
             
             App.Log($"Loaded {Tasks.Count} tasks.");
@@ -84,12 +84,17 @@ namespace DailyUptimeWidget.ViewModels
 
         private void SaveTasks()
         {
-            var taskStrings = new System.Collections.Generic.List<string>();
+            var taskModels = new System.Collections.Generic.List<Models.DailyTaskModel>();
             foreach(var t in Tasks)
             {
-                taskStrings.Add(t.Text);
+                taskModels.Add(new Models.DailyTaskModel 
+                { 
+                    Text = t.Text, 
+                    NotificationTime = t.NotificationTime, 
+                    IsNotificationEnabled = t.IsNotificationEnabled 
+                });
             }
-            _bootTimeService.SaveDailyTasks(taskStrings);
+            _bootTimeService.SaveDailyTasks(taskModels);
         }
 
         private async void RemoveTask(DailyTaskViewModel task)
@@ -113,7 +118,7 @@ namespace DailyUptimeWidget.ViewModels
             
             if (Tasks.Count < 5)
             {
-                Tasks.Add(new DailyTaskViewModel(CurrentTaskInput.Trim(), SaveTasks, RemoveTask));
+                Tasks.Add(new DailyTaskViewModel(CurrentTaskInput.Trim(), SaveTasks, RemoveTask, null, false));
                 SaveTasks();
                 CurrentTaskInput = "";
             }
@@ -181,6 +186,24 @@ namespace DailyUptimeWidget.ViewModels
                         _trayService.ShowNotification("Daily Target Reached!", "You have worked for 8 hours. Good job!");
                     }
                 }
+
+                // CHECK TASK NOTIFICATIONS
+                foreach (var task in Tasks)
+                {
+                    if (task.IsNotificationEnabled && task.NotificationTime.HasValue)
+                    {
+                        var triggerTime = task.NotificationTime.Value;
+                        if (now >= triggerTime)
+                        {
+                            // Check for 10-minute repeat
+                            if (task.LastNotifiedTime == null || (now - task.LastNotifiedTime.Value).TotalMinutes >= 10)
+                            {
+                                task.LastNotifiedTime = now;
+                                _trayService.ShowNotification("Task Reminder", task.Text);
+                            }
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -221,6 +244,7 @@ namespace DailyUptimeWidget.ViewModels
             // Sync with Registry whenever the property changes (UI toggle or code)
             _startupRegistryService.ToggleAutoStart(value);
         }
+
 
         [RelayCommand]
         private void ResetData()

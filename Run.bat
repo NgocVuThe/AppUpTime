@@ -12,5 +12,5 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 echo Launching EXE...
-start "" "bin\Debug\net8.0-windows\DailyUptimeWidget.exe"
+start "" "bin\Debug\net8.0-windows\TimmerDaily.exe"
 

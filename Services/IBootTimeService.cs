@@ -14,8 +14,8 @@ namespace DailyUptimeWidget.Services
         void ResetState();
         bool GetSavedAutoStartEnabled();
         void SaveAutoStartEnabled(bool enabled);
-        System.Collections.Generic.List<string> GetDailyTasks();
-        void SaveDailyTasks(System.Collections.Generic.List<string> tasks);
+        System.Collections.Generic.List<Models.DailyTaskModel> GetDailyTasks();
+        void SaveDailyTasks(System.Collections.Generic.List<Models.DailyTaskModel> tasks);
         void InvalidateCache();
     }
 }

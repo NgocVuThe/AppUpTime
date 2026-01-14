@@ -95,5 +95,65 @@ namespace DailyUptimeWidget
             // Focus common to clear focus from any active editing TextBox
             this.Focus();
         }
+
+        private void TimeInput_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (!(sender is System.Windows.Controls.TextBox textBox)) return;
+
+            // Handle numeric input and auto-tabbing
+            if (e.Key >= Key.D0 && e.Key <= Key.D9 || e.Key >= Key.NumPad0 && e.Key <= Key.NumPad9)
+            {
+                // Auto-skip the colon
+                if (textBox.CaretIndex == 2)
+                {
+                    textBox.CaretIndex = 3;
+                }
+            }
+            else if (e.Key == Key.Back || e.Key == Key.Delete)
+            {
+                // Prevent deleting the colon
+                int caretIndex = textBox.CaretIndex;
+                if (caretIndex == 3 && e.Key == Key.Back) 
+                {
+                    textBox.CaretIndex = 2;
+                    e.Handled = true;
+                }
+                else if (caretIndex == 2 && e.Key == Key.Delete)
+                {
+                    textBox.CaretIndex = 3;
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private void TimeInput_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (!(sender is System.Windows.Controls.TextBox textBox)) return;
+            if (!(textBox.DataContext is DailyTaskViewModel vm)) return;
+
+            int caretIndex = textBox.CaretIndex;
+            bool isHour = caretIndex <= 2;
+            int delta = e.Delta > 0 ? 1 : -1;
+
+            vm.AdjustTime(isHour, delta);
+            textBox.CaretIndex = caretIndex; // Keep caret position
+            e.Handled = true;
+        }
+
+        private void TimeInput_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is System.Windows.Controls.TextBox textBox)) return;
+            if (!(textBox.DataContext is DailyTaskViewModel vm)) return;
+
+            // Normalize on lost focus
+            if (TimeSpan.TryParse(vm.TempTimePart, out var ts))
+            {
+                vm.TempTimePart = ts.ToString(@"hh\:mm");
+            }
+            else
+            {
+                vm.TempTimePart = "08:00";
+            }
+        }
     }
 }

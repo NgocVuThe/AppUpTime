@@ -2,6 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace DailyUptimeWidget.Services
@@ -29,7 +30,7 @@ namespace DailyUptimeWidget.Services
         private const int WM_LBUTTONDBLCLK = 0x0203;
         private const int WM_RBUTTONUP = 0x0205;
 
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         public struct NOTIFYICONDATA
         {
             public int cbSize;
@@ -50,7 +51,7 @@ namespace DailyUptimeWidget.Services
             public int dwInfoFlags;
         }
 
-        [DllImport("shell32.dll", CharSet = CharSet.Auto)]
+        [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
         private static extern bool Shell_NotifyIcon(uint dwMessage, [In] ref NOTIFYICONDATA lpData);
 
         [DllImport("user32.dll")]
@@ -58,6 +59,25 @@ namespace DailyUptimeWidget.Services
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern bool AppendMenu(IntPtr hMenu, uint uFlags, uint uIDNewItem, string lpNewItem);
+
+        [DllImport("gdi32.dll")]
+        private static extern bool DeleteObject(IntPtr hObject);
+
+        [DllImport("user32.dll")]
+        private static extern bool DestroyIcon(IntPtr hIcon);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ICONINFO
+        {
+            public bool fIcon;
+            public int xHotspot;
+            public int yHotspot;
+            public IntPtr hbmMask;
+            public IntPtr hbmColor;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr CreateIconIndirect(ref ICONINFO icon);
 
         [DllImport("user32.dll")]
         private static extern uint TrackPopupMenu(IntPtr hMenu, uint uFlags, int x, int y, int nReserved, IntPtr hWnd, IntPtr prcRect);
@@ -78,6 +98,7 @@ namespace DailyUptimeWidget.Services
         private IntPtr _hIcon;
         private Action? _onShow;
         private Action? _onExit;
+        private Window? _trayWindow; // Keep reference to prevent GC
 
         public void Initialize(Action onShowCommand, Action onExitCommand)
         {
@@ -85,9 +106,9 @@ namespace DailyUptimeWidget.Services
             _onExit = onExitCommand;
 
             // Create a hidden window to handle tray messages
-            var window = new Window { Width = 0, Height = 0, WindowStyle = WindowStyle.None, ShowInTaskbar = false, Visibility = Visibility.Hidden };
-            window.Show();
-            var helper = new WindowInteropHelper(window);
+            _trayWindow = new Window { Width = 0, Height = 0, WindowStyle = WindowStyle.None, ShowInTaskbar = false, Visibility = Visibility.Hidden };
+            _trayWindow.Show();
+            var helper = new WindowInteropHelper(_trayWindow);
             var hWnd = helper.Handle;
 
             _hwndSource = HwndSource.FromHwnd(hWnd);
@@ -97,10 +118,19 @@ namespace DailyUptimeWidget.Services
             try
             {
                 var uri = new System.Uri("pack://application:,,,/Assets/clock_icon.png");
-                var bitmap = new BitmapImage(uri);
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = uri;
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.EndInit();
                 _hIcon = GetHIcon(bitmap);
+                App.Log($"Tray Icon loaded successfully: {_hIcon}");
             }
-            catch { _hIcon = IntPtr.Zero; }
+            catch (Exception ex) 
+            { 
+                _hIcon = IntPtr.Zero; 
+                App.Log($"Tray Icon load failed: {ex.Message}");
+            }
 
             var nid = new NOTIFYICONDATA
             {
@@ -113,7 +143,8 @@ namespace DailyUptimeWidget.Services
                 szTip = "Daily Uptime Widget"
             };
 
-            Shell_NotifyIcon(NIM_ADD, ref nid);
+            bool result = Shell_NotifyIcon(NIM_ADD, ref nid);
+            App.Log($"Tray Icon NIM_ADD result: {result}");
         }
 
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -154,7 +185,24 @@ namespace DailyUptimeWidget.Services
 
         public void ShowNotification(string title, string message)
         {
-            if (_hwndSource == null) return;
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    var noti = new NotificationWindow(title, message);
+                    noti.Show();
+                }
+                catch (Exception ex)
+                {
+                    // Fallback to native log if window fails
+                    App.Log($"Custom Notification Error: {ex.Message}");
+                }
+            });
+
+            // Optional: Keep native NIF_INFO as backup or remove it?
+            // User specifically asked for custom design, so we skip the native balloon.
+            /*
+            if (_hwndSource == null || _trayWindow == null) return;
             var nid = new NOTIFYICONDATA
             {
                 cbSize = Marshal.SizeOf(typeof(NOTIFYICONDATA)),
@@ -163,9 +211,10 @@ namespace DailyUptimeWidget.Services
                 uFlags = NIF_INFO,
                 szInfo = message,
                 szInfoTitle = title,
-                dwInfoFlags = 0x01 // NIIF_INFO
+                dwInfoFlags = 0x01
             };
             Shell_NotifyIcon(NIM_MODIFY, ref nid);
+            */
         }
 
         public void Dispose()
@@ -175,26 +224,67 @@ namespace DailyUptimeWidget.Services
                 var nid = new NOTIFYICONDATA { cbSize = Marshal.SizeOf(typeof(NOTIFYICONDATA)), hWnd = _hwndSource.Handle, uID = TRAY_ID };
                 Shell_NotifyIcon(NIM_DELETE, ref nid);
             }
+            _trayWindow?.Close();
         }
 
         private IntPtr GetHIcon(BitmapSource bitmap)
         {
-            int width = (int)bitmap.Width;
-            int height = (int)bitmap.Height;
-            int stride = width * ((bitmap.Format.BitsPerPixel + 7) / 8);
-            byte[] bits = new byte[height * stride];
-            bitmap.CopyPixels(bits, stride, 0);
-
-            // Simple conversion (might need improvement for transparency, but enough for now)
-            using (var ms = new System.IO.MemoryStream())
+            try
             {
-                var encoder = new PngBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(bitmap));
-                encoder.Save(ms);
-                using (var iconBitmap = new System.Drawing.Bitmap(ms))
+                // Ensure 32x32 for high quality tray scaling
+                var scaledBitmap = new TransformedBitmap(bitmap, new ScaleTransform(32.0 / bitmap.PixelWidth, 32.0 / bitmap.PixelHeight));
+
+                using (var ms = new System.IO.MemoryStream())
                 {
-                    return iconBitmap.GetHicon();
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(scaledBitmap));
+                    encoder.Save(ms);
+                    ms.Position = 0;
+                    
+                    using (var gdiBitmap = new System.Drawing.Bitmap(ms))
+                    {
+                        // To preserve alpha channel in HICON, we use CreateIconIndirect with a dummy mask
+                        IntPtr hBitmap = gdiBitmap.GetHbitmap(System.Drawing.Color.FromArgb(0, 0, 0, 0));
+                        
+                        // Create a purely black mask of the same size
+                        using (var maskBitmap = new System.Drawing.Bitmap(gdiBitmap.Width, gdiBitmap.Height))
+                        {
+                            IntPtr hMask = maskBitmap.GetHbitmap();
+                            
+                            ICONINFO ii = new ICONINFO
+                            {
+                                fIcon = true,
+                                hbmColor = hBitmap,
+                                hbmMask = hMask
+                            };
+
+                            IntPtr hIcon = CreateIconIndirect(ref ii);
+
+                            // Clean up GDI handles immediately
+                            DeleteObject(hBitmap);
+                            DeleteObject(hMask);
+
+                            return hIcon;
+                        }
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                App.Log($"GetHIcon primary failed: {ex.Message}. Using fallback.");
+                try
+                {
+                    string? exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+                    if (exePath != null)
+                    {
+                        using (var sysIcon = System.Drawing.Icon.ExtractAssociatedIcon(exePath))
+                        {
+                            return sysIcon?.Handle ?? IntPtr.Zero;
+                        }
+                    }
+                }
+                catch { }
+                return IntPtr.Zero;
             }
         }
     }

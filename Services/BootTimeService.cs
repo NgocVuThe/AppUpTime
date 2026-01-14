@@ -85,7 +85,7 @@ namespace DailyUptimeWidget.Services
                 bool needSave = false;
                 if (state == null || state.LastRecordedDate.Date != today)
                 {
-                    var existingTasks = state?.DailyTasks ?? new List<string>();
+                    var existingTasks = state?.DailyTasks ?? new List<DailyTaskModel>();
                     var autoStart = state?.IsAutoStartEnabled ?? false;
                     state = new BootState 
                     { 
@@ -216,13 +216,13 @@ namespace DailyUptimeWidget.Services
             SaveState(state);
         }
 
-        public System.Collections.Generic.List<string> GetDailyTasks()
+        public System.Collections.Generic.List<DailyTaskModel> GetDailyTasks()
         {
             var state = LoadState();
-            return state?.DailyTasks ?? new List<string>();
+            return state?.DailyTasks ?? new List<DailyTaskModel>();
         }
 
-        public void SaveDailyTasks(System.Collections.Generic.List<string> tasks)
+        public void SaveDailyTasks(System.Collections.Generic.List<DailyTaskModel> tasks)
         {
             var state = LoadState() ?? new BootState { LastRecordedDate = DateTime.Today };
             state.DailyTasks = tasks;
